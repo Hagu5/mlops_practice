@@ -4,7 +4,6 @@ pipeline {
     }
 
     stages {
-
         stage('Clone repository') {
             steps {
                 git 'https://github.com/Hagu5/mlops_practice.git'
@@ -13,11 +12,11 @@ pipeline {
         stage('Run Python pipeline') {
             steps {
                 dir('lab1') {
-                    sh 'pwd'
-                    withCredentials([string(credentialsId: 'KAGGLE_API_TOKEN', variable: 'KAGGLE_API_TOKEN')]) {
-                    sh 'export KAGGLE_API_TOKEN=$KAGGLE_API_TOKEN'
-                    sh './pipeline.sh'
-                }
+                    withCredentials([string(credentialsId: 'kaggle_token', variable: 'token')]) {
+                        withEnv(['KAGGLE_API_TOKEN=$token']) {
+                            sh './pipeline.sh'
+                        }
+                    }
                 }
                 
             }

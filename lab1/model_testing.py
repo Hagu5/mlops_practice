@@ -8,7 +8,7 @@ import pickle
 
 import pandas as pd
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error, r2_score
 
 
 def load_model(model_path: str):
@@ -31,12 +31,12 @@ def evaluate_model(model, X_test: pd.DataFrame, y_test: pd.Series):
     """Оценка модели и вывод метрик."""
     y_pred = model.predict(X_test)
 
-    acc = accuracy_score(y_test, y_pred)
-    f1_w = f1_score(y_test, y_pred, average='weighted')
-    f1_m = f1_score(y_test, y_pred, average='macro')
+    mse = mean_squared_error(y_test, y_pred)
+    mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
 
 
-    return {'accuracy': acc, 'f1_weighted': f1_w, 'f1_macro': f1_m}
+    return {'R2': r2, 'MAE': mae, 'MSE': mse}
 
 
 def main():
@@ -61,7 +61,7 @@ def main():
         exit()
     
     print(
-        f"Model is {metrics['accuracy']:.4f} accuracy.",end='')
+        f"Model is {metrics['R2']:.4f} R2.",end='')
 
 
 if __name__ == "__main__":
