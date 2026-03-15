@@ -61,7 +61,7 @@ def main():
         exit()
     
     print(
-        f"Model 'Stress' is {metrics['accuracy']:.4f} accuracy.",end='')
+        f"Model is {metrics['accuracy']:.4f} accuracy.",end='')
 
 
 if __name__ == "__main__":

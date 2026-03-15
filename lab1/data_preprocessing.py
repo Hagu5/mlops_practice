@@ -33,7 +33,7 @@ def preprocess_data(train_df: pd.DataFrame, test_df: pd.DataFrame) -> tuple:
         
 
 
-    return dfs[train_df], dfs[test_df]
+    return dfs[0], dfs[1]
 
 
 def save_data(train_df: pd.DataFrame, test_df: pd.DataFrame,
