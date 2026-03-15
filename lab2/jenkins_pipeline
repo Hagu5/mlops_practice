@@ -14,7 +14,10 @@ pipeline {
             steps {
                 dir('lab1') {
                     sh 'pwd'
+                    withCredentials([string(credentialsId: 'KAGGLE_API_TOKEN', variable: 'KAGGLE_API_TOKEN')]) {
+                    sh 'export KAGGLE_API_TOKEN=$KAGGLE_API_TOKEN'
                     sh './pipeline.sh'
+                }
                 }
                 
             }
