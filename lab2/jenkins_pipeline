@@ -8,13 +8,14 @@ pipeline {
         stage('Clone repository') {
             steps {
                 git 'https://github.com/Hagu5/mlops_practice.git'
-            }
+            }    
         }
-        
-
         stage('Run Python pipeline') {
             steps {
-                sh 'lab1/pipeline.sh'
+                dir('lab1') {
+                    sh 'pwd'
+                }
+                sh 'pipeline.sh'
             }
         }
     }
