@@ -14,8 +14,9 @@ pipeline {
             steps {
                 dir('lab1') {
                     sh 'pwd'
+                    sh 'pipeline.sh'
                 }
-                sh 'pipeline.sh'
+                
             }
         }
     }
