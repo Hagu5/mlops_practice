@@ -7,12 +7,16 @@ import pickle
 import warnings
 
 import pandas as pd
-from imblearn.over_sampling import SMOTE
-from lightgbm import LGBMClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score
-from sklearn.model_selection import train_test_split, GridSearchCV
-from xgboost import XGBClassifier
+import numpy as np
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score
+)
+from sklearn.linear_model import LinearRegression
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -26,165 +30,46 @@ def load_preprocessed_data(train_path: str) -> pd.DataFrame:
 def prepare_features_and_targets(train_df: pd.DataFrame) -> tuple:
     """
     Подготовка признаков и целевых переменных.
-    
-    Returns:
-        X, y_prod, y_stress
     """
-    # Признаки (исключаем User_ID и целевые переменные)
-    feature_cols = [
-        'Age', 'Gender', 'Occupation', 'Device_Type',
-        'Daily_Phone_Hours', 'Social_Media_Hours', 'Sleep_Hours',
-        'App_Usage_Count', 'Caffeine_Intake_Cups',
-        'Weekend_Screen_Time_Hours'
-    ]
-
-    X = train_df[feature_cols]
-
-    # Целевые переменные
-    y_prod = train_df['Productivity_Class']
-    y_stress = train_df['Stress_Class']
-
-    return X, y_prod, y_stress
+    X = train_df.select_dtypes(include=np.number).drop(columns=['addiction_level'])
+    y = train_df['addiction_level']
+    return X, y
 
 
-def split_data(X, y, test_size: float = 0.2, val_size: float = 0.25,
+def split_data(X, y, val_size: float = 0.2,
                random_state: int = 42) -> tuple:
     """
-    Разделение данных на train/val/test.
+    Разделение данных на train/val.
     
-    Сначала делим на train+val и test, затем train+val на train и val.
+    Сначала делим на train и val.
     """
-    # Сначала: train+val vs test
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state, stratify=y
+    X_train, X_val, y_train, y_val = train_test_split(
+    X, y, test_size=val_size, random_state=random_state
     )
-
-    return X_train, X_test, y_train, y_test
-
-
-# Сетки гиперпараметров для каждой модели
-HYPERPARAM_GRIDS = {
-    'Random Forest': {
-        'n_estimators': [100, 200, 300],
-        'max_depth': [5, 10, 20, ],
-        'min_samples_split': [2, 5],
-        'min_samples_leaf': [1, 2, 4],
-        'max_features': ['sqrt']
-    },
-    'XGBoost': {
-        'n_estimators': [100, 200, 300],
-        'max_depth': [3, 5, 7, 10],
-        'learning_rate': [0.01, 0.05, 0.1, 0.2],
-        'subsample': [0.6, 0.8, 1.0],
-        'colsample_bytree': [0.6, 0.8, 1.0]
-    },
-    'LightGBM': {
-        'n_estimators': [100, 200, 300],
-        'max_depth': [5, 10, 15],
-        'learning_rate': [0.01, 0.05, 0.1],
-        'num_leaves': [20, 31, 50],
-        'subsample': [0.6, 0.8, 1.0],
-        'colsample_bytree': [0.6, 0.8, 1.0]
-    }
-}
+    return X_train, X_val, y_train, y_val
 
 
-def get_base_model(model_name: str):
-    """Возвращает базовую модель без параметров."""
-    if model_name == 'Random Forest':
-        return RandomForestClassifier(random_state=42, n_jobs=-1)
-    elif model_name == 'XGBoost':
-        return XGBClassifier(random_state=42, use_label_encoder=False,
-                             eval_metric='mlogloss', verbosity=0)
-    else:
-        return LGBMClassifier(random_state=42, verbose=-1)
-
-
-def tuning_model(X_train, X_test, y_train, y_test, best_prod_name):
-    """
-    Автоматический подбор гиперпараметров с помощью GridSearchCV.
-    """
-    print(f'🔧 Auto-tuning: {best_prod_name}')
-    print('─' * 50)
-
-    # Получаем базовую модель и сетку параметров
-    base_model = get_base_model(best_prod_name)
-    param_grid = HYPERPARAM_GRIDS[best_prod_name]
-
-    # GridSearchCV для поиска лучших параметров
-    grid_search = GridSearchCV(
-        estimator=base_model,
-        param_grid=param_grid,
-        cv=3,
-        scoring='f1_weighted',
-        verbose=3
-    )
-
-    print(f'   Searching best parameters...')
-    grid_search.fit(X_train, y_train)
-
-    # Лучшая модель
-    best_model = grid_search.best_estimator_
-    best_params = grid_search.best_params_
-
-    print(f'\n   ✅ Best parameters found:')
-    for param, value in best_params.items():
-        print(f'      {param}: {value}')
-
-    # Предсказания на тесте
-    y_pred_prod_tuned = best_model.predict(X_test)
-
-    acc = accuracy_score(y_test, y_pred_prod_tuned)
-    f1_w = f1_score(y_test, y_pred_prod_tuned, average='weighted')
-    f1_m = f1_score(y_test, y_pred_prod_tuned, average='macro')
-
-    print(f'\n✅ Tuned {best_prod_name} results:')
-    print(f'   Test Accuracy:    {acc:.4f}')
-    print(f'   Test F1 Weighted: {f1_w:.4f}')
-    print(f'   Test F1 Macro:    {f1_m:.4f}')
-
-    return best_model, acc, f1_w, f1_m
-
-
-def classification_model(X_train, X_test, y_train, y_test, is_tuned=True) -> tuple:
+def regression_model(X_train, X_val, y_train, y_val) -> tuple:
     models = {
-        'Random Forest': RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1),
-        'XGBoost': XGBClassifier(n_estimators=200, random_state=42, use_label_encoder=False,
-                                 eval_metric='mlogloss', verbosity=0),
-        'LightGBM': LGBMClassifier(n_estimators=200, random_state=42, verbose=-1)
+    "Linear Regression": LinearRegression(),
+    "Random Forest": RandomForestRegressor(n_estimators=120, max_depth=12, random_state=42),
+    "Gradient Boosting": GradientBoostingRegressor()
     }
-    models_tuned = {
-        'Random Forest': RandomForestClassifier(max_depth=20,
-                                                max_features="sqrt",
-                                                min_samples_leaf=1,
-                                                min_samples_split=2,
-                                                n_estimators=300, random_state=42, n_jobs=-1),
-        'XGBoost': XGBClassifier(n_estimators=200, random_state=42, use_label_encoder=False,
-                                 eval_metric='mlogloss', verbosity=0),
-        'LightGBM': LGBMClassifier(colsample_bytree=0.8,
-                                   learning_rate=0.1,
-                                   max_depth=5,
-                                   n_estimators=300,
-                                   num_leaves=31,
-                                   subsample=0.6, random_state=42, verbose=-1)
-    }
-    results = {}
-
-    for name, model in models_tuned.items() if is_tuned else models.items():
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_val = scaler.transform(X_val)
+    best_model_score = 0
+    best_model = None
+    for name, model in models.items():
         model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-
-        acc = accuracy_score(y_test, y_pred)
-        f1_w = f1_score(y_test, y_pred, average='weighted')
-        f1_m = f1_score(y_test, y_pred, average='macro')
-
-        results[name] = {'accuracy': acc, 'f1_weighted': f1_w, 'f1_macro': f1_m, 'model': model}
-
-    best_prod_name = max(results, key=lambda k: results[k]['f1_weighted'])
-    if not is_tuned:
-        best_model, acc, f1_w, f1_m = tuning_model(X_train, X_test, y_train, y_test, best_prod_name)
-    else:
-        best_model = results[best_prod_name].get('model')
+        preds = model.predict(X_val)
+        if (best_model is None):
+            best_model = model
+            best_model_score = r2_score(y_val, preds)
+        elif (best_model_score < r2_score(y_val, preds)):
+            best_model = model
+            best_model_score = r2_score(y_val, preds)
+        print(name, "R2:", r2_score(y_val, preds))
     return best_model
 
 
@@ -195,33 +80,16 @@ def main():
     data_dir = os.path.join(base_dir, 'data')
     train_path = os.path.join(data_dir, 'train', 'train_preprocessed.csv')
     models_path = os.path.join(data_dir, 'models')
-    p_model_path = os.path.join(models_path, 'p_model.pkl')
-    s_model_path = os.path.join(models_path, 's_model.pkl')
+    model_path = os.path.join(models_path, 'model.pkl')
 
     train_df = load_preprocessed_data(train_path)
 
-    X, y_prod, y_stress = prepare_features_and_targets(train_df)
-
-    # Split — Productivity target
-    X_train_p, X_test_p, y_train_p, y_test_p = split_data(
-        X, y_prod, test_size=0.2, val_size=0.25, random_state=42
-    )
-
-    # Split — Stress target (same indices for fair comparison)
-    X_train_s, X_test_s, y_train_s, y_test_s = split_data(
-        X, y_stress, test_size=0.2, val_size=0.25, random_state=42
-    )
-
-    smote = SMOTE(random_state=42)
+    X, y = prepare_features_and_targets(train_df)
+    X_train, X_val, y_train, y_val = split_data(X, y)
+    model = regression_model(X_train, X_val, y_train, y_val)
     os.makedirs(models_path, exist_ok=True)
-    X_train_p_sm, y_train_p_sm = smote.fit_resample(X_train_p, y_train_p)
-    p_model = classification_model(X_train_p_sm, X_test_p, y_train_p_sm, y_test_p)
-    with open(p_model_path, 'wb') as f:
-        pickle.dump(p_model, f)
-    X_train_s_sm, y_train_s_sm = smote.fit_resample(X_train_s, y_train_s)
-    s_model = classification_model(X_train_s_sm, X_test_s, y_train_s_sm, y_test_s)
-    with open(s_model_path, 'wb') as f:
-        pickle.dump(s_model, f)
+    with open(model_path, 'wb') as f:
+        pickle.dump(model, f)
 
 
 if __name__ == "__main__":

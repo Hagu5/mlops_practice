@@ -82,7 +82,7 @@ def split_and_save_data(
 def main():
     """Основная функция для скачивания и обработки данных."""
     # Параметры
-    dataset_name = "amar5693/screen-time-sleep-and-stress-analysis-dataset"
+    dataset_name = "sharmajicoder/gaming-and-mental-health"
     download_dir = "data/raw"
     train_path = "data/train/train.csv"
     test_path = "data/test/test.csv"
