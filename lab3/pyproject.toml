@@ -1,0 +1,17 @@
+[project]
+name = "ml-service"
+version = "0.1.0"
+description = "ML microservice for addiction level prediction"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "scikit-learn",
+    "pandas",
+    "numpy",
+]
+
+[project.optional-dependencies]
+train = [
+    "kagglehub",
+]
