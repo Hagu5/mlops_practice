@@ -4,3 +4,5 @@ target
 **/*.iml
 **/.env
 **/data
+!/lab4/data
+!/lab4/data/**
