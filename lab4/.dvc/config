@@ -1,5 +1,5 @@
 [core]
-    remote = gdrive
-['remote "gdrive"']
-    url = gdrive://1nKKzXRS5QEz-DNvAWGgOqBPIFx9vxCtl
-    gdrive_acknowledge_abuse = true
+    remote = minio
+['remote "minio"']
+    url = s3://dvc-lab4
+    endpointurl = http://localhost:9000
